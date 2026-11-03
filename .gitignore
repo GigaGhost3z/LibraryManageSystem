@@ -1,0 +1,31 @@
+# ---- Java / Maven ----
+backend/target/
+target/
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.properties
+
+# ---- Node / Vite ----
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
+npm-debug.log*
+yarn-error.log*
+
+# ---- H2 运行时数据库文件 ----
+backend/data/
+*.mv.db
+*.trace.db
+
+# ---- IDE ----
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db

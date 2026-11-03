@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>图书管理系统（纯离线版）</title>
+<style>
+  :root {
+    --primary: #1f6feb;
+    --primary-dark: #1757bd;
+    --border: #dcdfe6;
+    --text: #303133;
+    --text-2: #606266;
+    --text-3: #909399;
+    --bg: #f0f2f5;
+    --danger: #f56c6c;
+    --success: #67c23a;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
+      'Microsoft YaHei', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+  .app-header {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px; padding: 0 22px;
+    background: linear-gradient(90deg, #1f6feb 0%, #3b82f6 100%);
+    color: #fff;
+  }
+  .brand { display: flex; align-items: center; gap: 9px; font-size: 19px; font-weight: 600; }
+  .brand .logo {
+    width: 26px; height: 26px; border-radius: 6px; background: rgba(255,255,255,.22);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 15px;
+  }
+  .header-right { display: flex; align-items: center; gap: 12px; font-size: 12px; opacity: .95; }
+
+  .container { max-width: 1500px; margin: 18px auto; padding: 0 18px 30px; }
+  .card {
+    background: #fff; border-radius: var(--radius);
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    padding: 16px; margin-bottom: 14px;
+  }
+
+  label.fld { display: block; font-size: 13px; color: var(--text-2); margin-bottom: 5px; }
+  input[type=text], input[type=number], input[type=date], select, textarea {
+    width: 100%; padding: 8px 11px; font-size: 14px; font-family: inherit;
+    color: var(--text); background: #fff;
+    border: 1px solid var(--border); border-radius: 6px; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(31,111,235,.14);
+  }
+  textarea { resize: vertical; min-height: 62px; }
+  .err { color: var(--danger); font-size: 12px; margin-top: 4px; min-height: 16px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 15px; font-size: 14px; font-family: inherit;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: #fff; color: var(--text-2); cursor: pointer;
+    transition: all .15s; white-space: nowrap;
+  }
+  .btn:hover { border-color: #c6cbd4; color: var(--primary); }
+  .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); color: #fff; }
+  .btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .btn-danger:hover { background: #e05656; border-color: #e05656; color: #fff; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-link {
+    background: none; border: none; padding: 2px 6px; cursor: pointer;
+    font-size: 13px; font-family: inherit; color: var(--primary);
+  }
+  .btn-link:hover { text-decoration: underline; }
+  .btn-link.del { color: var(--danger); }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+  .filter-item { display: flex; flex-direction: column; }
+  .filter-item .w-lg { width: 230px; }
+  .filter-item .w-md { width: 165px; }
+  .filter-item .w-sm { width: 125px; }
+  .filter-actions { display: flex; gap: 8px; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 13px; align-items: center; }
+  .toolbar .spacer { flex: 1; }
+
+  .table-wrap { border: 1px solid var(--border); border-radius: 6px; overflow: auto; max-height: 560px; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+  thead th {
+    position: sticky; top: 0; z-index: 2;
+    background: #fafafa; color: var(--text-2); font-weight: 600;
+    text-align: left; padding: 10px 12px; white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  tbody tr:hover { background: #f0f7ff; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; }
+  td.center, th.center { text-align: center; }
+  .ellip { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { padding: 46px 0; text-align: center; color: var(--text-3); }
+
+  .tag {
+    display: inline-block; padding: 1px 8px; border-radius: 10px;
+    font-size: 12px; line-height: 19px; border: 1px solid transparent; white-space: nowrap;
+  }
+  .tag-success { background: #f0f9eb; color: var(--success); border-color: #e1f3d8; }
+  .tag-danger  { background: #fef0f0; color: var(--danger);  border-color: #fde2e2; }
+  .tag-primary { background: #ecf5ff; color: var(--primary); border-color: #d9ecff; }
+  .tag-info    { background: #f4f4f5; color: var(--text-3); border-color: #e9e9eb; }
+
+  .pager { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; font-size: 13px; color: var(--text-2); }
+  .pager .spacer { flex: 1; }
+  .pg-btn {
+    min-width: 30px; height: 30px; padding: 0 8px;
+    border: 1px solid var(--border); background: #fff; border-radius: 5px;
+    cursor: pointer; font-size: 13px; color: var(--text-2); font-family: inherit;
+  }
+  .pg-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+  .pg-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+  .pg-btn:disabled { opacity: .45; cursor: not-allowed; }
+  .pg-dots { padding: 0 3px; color: var(--text-3); }
+  .pager select { width: auto; padding: 5px 8px; }
+  .pager input.jump { width: 56px; padding: 5px 7px; text-align: center; }
+
+  .mask {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    display: none; align-items: flex-start; justify-content: center;
+    z-index: 100; padding: 40px 16px; overflow: auto;
+  }
+  .mask.show { display: flex; }
+  .dialog {
+    background: #fff; border-radius: var(--radius); width: 640px; max-width: 100%;
+    box-shadow: 0 12px 32px rgba(0,0,0,.2); animation: pop .16s ease-out;
+  }
+  @keyframes pop { from { transform: translateY(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .dialog-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 15px 20px; border-bottom: 1px solid #f0f0f0; font-size: 16px; font-weight: 600;
+  }
+  .dialog-close { background: none; border: none; font-size: 20px; line-height: 1; color: var(--text-3); cursor: pointer; }
+  .dialog-close:hover { color: var(--danger); }
+  .dialog-body { padding: 18px 20px 6px; }
+  .dialog-footer {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 13px 20px; border-top: 1px solid #f0f0f0;
+  }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  .grid .full { grid-column: 1 / -1; }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+
+  .toast-wrap { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 9px; align-items: center; }
+  .toast {
+    padding: 10px 18px; border-radius: 6px; font-size: 14px; color: #fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,.16); animation: pop .16s ease-out;
+    background: #333; max-width: 80vw;
+  }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  .toast.info { background: var(--primary); }
+
+  .hint {
+    display: flex; align-items: center; gap: 8px;
+    background: #ecf5ff; border: 1px solid #d9ecff; color: #3a7bd5;
+    padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; line-height: 1.6;
+  }
+  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(31,111,235,.25); border-top-color: var(--primary); border-radius: 50%; animation: rot .7s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand"><span class="logo">📚</span><span>图书管理系统</span></div>
+  <div class="header-right">
+    <span>纯离线版 · 无需安装任何环境</span>
+    <span>｜</span>
+    <span>数据保存在本机浏览器</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="hint">
+    <span>💡</span>
+    <div>
+      本页面 <b>不依赖后端和数据库</b>，双击打开即可使用，数据保存在当前浏览器的 localStorage 中。<br />
+      换电脑或备份数据请用右上角的 <b>导出 JSON</b> / <b>导入 JSON</b>；清空后可点 <b>恢复示例数据</b> 还原 41 本演示图书。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filters">
+      <div class="filter-item">
+        <label class="fld" for="kw">关键字（书名 / 作者 / ISBN）</label>
+        <input type="text" id="kw" class="w-lg" placeholder="如：三体、刘慈欣、9787536692930" />
+      </div>
+      <div class="filter-item">
+        <label class="fld" for="category">分类</label>
+        <select id="category" class="w-md"><option value="">全部分类</option></select>
+      </div>
+      <div class="filter-item">
+        <label class="fld" for="status">状态</label>
+        <select id="status" class="w-sm">
+          <option value="">全部</option>
+          <option value="1">在架</option>
+          <option value="0">下架</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" id="btnSearch">查询</button>
+        <button class="btn" id="btnReset">重置</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <button class="btn btn-primary" id="btnCreate">＋ 新增图书</button>
+      <button class="btn btn-danger" id="btnBatchDelete" disabled>批量删除</button>
+      <div class="spacer"></div>
+      <button class="btn" id="btnExport">⤓ 导出 JSON</button>
+      <button class="btn" id="btnImport">⤒ 导入 JSON</button>
+      <button class="btn" id="btnResetData">↺ 恢复示例数据</button>
+      <input type="file" id="fileInput" accept=".json,application/json" style="display:none" />
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="center" style="width:42px"><input type="checkbox" id="checkAll" /></th>
+            <th style="width:140px">ISBN</th>
+            <th>书名</th>
+            <th style="width:140px">作者</th>
+            <th style="width:170px">出版社</th>
+            <th style="width:100px">分类</th>
+            <th style="width:105px">出版日期</th>
+            <th class="num" style="width:88px">定价</th>
+            <th class="center" style="width:104px">可借/馆藏</th>
+            <th style="width:110px">馆藏位置</th>
+            <th class="center" style="width:78px">状态</th>
+            <th class="center" style="width:110px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="empty" id="emptyTip" style="display:none">暂无数据</div>
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </div>
+</div>
+
+<div class="mask" id="mask">
+  <div class="dialog">
+    <div class="dialog-header">
+      <span id="dlgTitle">新增图书</span>
+      <button class="dialog-close" id="btnDlgClose" title="关闭">×</button>
+    </div>
+    <div class="dialog-body">
+      <form id="bookForm" autocomplete="off" onsubmit="return false;">
+        <input type="hidden" id="f_id" />
+        <div class="grid">
+          <div>
+            <label class="fld" for="f_isbn">ISBN <span style="color:#f56c6c">*</span></label>
+            <input type="text" id="f_isbn" maxlength="20" placeholder="如 9787536692930" />
+            <div class="err" id="e_isbn"></div>
+          </div>
+          <div>
+            <label class="fld" for="f_title">书名 <span style="color:#f56c6c">*</span></label>
+            <input type="text" id="f_title" maxlength="200" placeholder="请输入书名" />
+            <div class="err" id="e_title"></div>
+          </div>
+          <div>
+            <label class="fld" for="f_author">作者 <span style="color:#f56c6c">*</span></label>
+            <input type="text" id="f_author" maxlength="100" placeholder="请输入作者" />
+            <div class="err" id="e_author"></div>
+          </div>
+          <div>
+            <label class="fld" for="f_publisher">出版社</label>
+            <input type="text" id="f_publisher" maxlength="100" placeholder="请输入出版社" />
+            <div class="err"></div>
+          </div>
+          <div>
+            <label class="fld" for="f_category">分类</label>
+            <input type="text" id="f_category" maxlength="50" list="catList" placeholder="可选择或直接输入" />
+            <datalist id="catList"></datalist>
+            <div class="err"></div>
+          </div>
+          <div>
+            <label class="fld" for="f_publishDate">出版日期</label>
+            <input type="date" id="f_publishDate" />
+            <div class="err"></div>
+          </div>
+          <div>
+            <label class="fld" for="f_price">定价（元）</label>
+            <input type="number" id="f_price" min="0" step="0.01" placeholder="0.00" />
+            <div class="err"></div>
+          </div>
+          <div>
+            <label class="fld" for="f_location">馆藏位置</label>
+            <input type="text" id="f_location" maxlength="50" placeholder="如 A区-01-01" />
+            <div class="err"></div>
+          </div>
+          <div>
+            <label class="fld" for="f_totalCopies">馆藏总数 <span style="color:#f56c6c">*</span></label>
+            <input type="number" id="f_totalCopies" min="0" step="1" value="1" />
+            <div class="err" id="e_totalCopies"></div>
+          </div>
+          <div>
+            <label class="fld" for="f_availableCopies">可借数量 <span style="color:#f56c6c">*</span></label>
+            <input type="number" id="f_availableCopies" min="0" step="1" value="1" />
+            <div class="err" id="e_availableCopies"></div>
+          </div>
+          <div>
+            <label class="fld" for="f_status">状态</label>
+            <select id="f_status">
+              <option value="1">在架</option>
+              <option value="0">下架</option>
+            </select>
+            <div class="err"></div>
+          </div>
+          <div class="full">
+            <label class="fld" for="f_remark">备注</label>
+            <textarea id="f_remark" maxlength="255" placeholder="选填"></textarea>
+            <div class="err"></div>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="dialog-footer">
+      <button class="btn" id="btnCancel">取消</button>
+      <button class="btn btn-primary" id="btnSubmit">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="mask" id="confirmMask">
+  <div class="dialog" style="width:420px">
+    <div class="dialog-header"><span id="cfTitle">确认</span><button class="dialog-close" id="cfClose">×</button></div>
+    <div class="dialog-body"><div id="cfText" style="padding-bottom:14px;line-height:1.7"></div></div>
+    <div class="dialog-footer">
+      <button class="btn" id="cfCancel">取消</button>
+      <button class="btn btn-primary" id="cfOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =====================================================================
+     纯离线版数据层：用 localStorage 当数据库，接口行为与后端保持一致
+     （返回 {code, message, data}，成功 code=200，失败 reject）
+     ===================================================================== */
+  var SEED = /*@@SEED@@*/
+[
+  {
+    "id": 1,
+    "isbn": "9787020002207",
+    "title": "红楼梦",
+    "author": "曹雪芹",
+    "publisher": "人民文学出版社",
+    "category": "古典文学",
+    "publishDate": "1996-12-01",
+    "price": 59.7,
+    "totalCopies": 5,
+    "availableCopies": 3,
+    "location": "A区-01-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 2,
+    "isbn": "9787101003048",
+    "title": "三国演义",
+    "author": "罗贯中",
+    "publisher": "中华书局",
+    "category": "古典文学",
+    "publishDate": "2005-04-01",
+    "price": 45.0,
+    "totalCopies": 4,
+    "availableCopies": 4,
+    "location": "A区-01-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 3,
+    "isbn": "9787506365437",
+    "title": "活着",
+    "author": "余华",
+    "publisher": "作家出版社",
+    "category": "当代小说",
+    "publishDate": "2012-08-01",
+    "price": 35.0,
+    "totalCopies": 6,
+    "availableCopies": 2,
+    "location": "A区-02-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 4,
+    "isbn": "9787544270878",
+    "title": "百年孤独",
+    "author": "加西亚·马尔克斯",
+    "publisher": "南海出版公司",
+    "category": "外国文学",
+    "publishDate": "2011-06-01",
+    "price": 39.5,
+    "totalCopies": 3,
+    "availableCopies": 1,
+    "location": "A区-02-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 5,
+    "isbn": "9787506380263",
+    "title": "白鹿原",
+    "author": "陈忠实",
+    "publisher": "人民文学出版社",
+    "category": "当代小说",
+    "publishDate": "2017-03-01",
+    "price": 45.0,
+    "totalCopies": 4,
+    "availableCopies": 4,
+    "location": "A区-02-03",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 6,
+    "isbn": "9787536692930",
+    "title": "三体",
+    "author": "刘慈欣",
+    "publisher": "重庆出版社",
+    "category": "科幻小说",
+    "publishDate": "2008-01-01",
+    "price": 23.0,
+    "totalCopies": 8,
+    "availableCopies": 5,
+    "location": "B区-01-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 7,
+    "isbn": "9787536692947",
+    "title": "三体Ⅱ·黑暗森林",
+    "author": "刘慈欣",
+    "publisher": "重庆出版社",
+    "category": "科幻小说",
+    "publishDate": "2008-05-01",
+    "price": 32.0,
+    "totalCopies": 6,
+    "availableCopies": 6,
+    "location": "B区-01-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 8,
+    "isbn": "9787536693968",
+    "title": "三体Ⅲ·死神永生",
+    "author": "刘慈欣",
+    "publisher": "重庆出版社",
+    "category": "科幻小说",
+    "publishDate": "2010-11-01",
+    "price": 38.0,
+    "totalCopies": 6,
+    "availableCopies": 3,
+    "location": "B区-01-03",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 9,
+    "isbn": "9787115428028",
+    "title": "算法导论（第3版）",
+    "author": "托马斯·科尔曼",
+    "publisher": "人民邮电出版社",
+    "category": "计算机",
+    "publishDate": "2013-01-01",
+    "price": 128.0,
+    "totalCopies": 3,
+    "availableCopies": 1,
+    "location": "C区-01-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 10,
+    "isbn": "9787111544937",
+    "title": "深入理解计算机系统（第3版）",
+    "author": "兰德尔·布莱恩特",
+    "publisher": "机械工业出版社",
+    "category": "计算机",
+    "publishDate": "2016-11-01",
+    "price": 139.0,
+    "totalCopies": 2,
+    "availableCopies": 2,
+    "location": "C区-01-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 11,
+    "isbn": "9787111213826",
+    "title": "代码大全（第2版）",
+    "author": "史蒂夫·迈克康奈尔",
+    "publisher": "电子工业出版社",
+    "category": "计算机",
+    "publishDate": "2006-03-01",
+    "price": 128.0,
+    "totalCopies": 2,
+    "availableCopies": 0,
+    "location": "C区-01-03",
+    "status": 1,
+    "remark": "全部借出"
+  },
+  {
+    "id": 12,
+    "isbn": "9787115546081",
+    "title": "Java核心技术（卷I）",
+    "author": "凯·霍斯特曼",
+    "publisher": "人民邮电出版社",
+    "category": "计算机",
+    "publishDate": "2021-10-01",
+    "price": 149.0,
+    "totalCopies": 4,
+    "availableCopies": 3,
+    "location": "C区-02-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 13,
+    "isbn": "9787111641247",
+    "title": "深入理解Java虚拟机",
+    "author": "周志明",
+    "publisher": "机械工业出版社",
+    "category": "计算机",
+    "publishDate": "2019-12-01",
+    "price": 129.0,
+    "totalCopies": 5,
+    "availableCopies": 2,
+    "location": "C区-02-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 14,
+    "isbn": "9787121362217",
+    "title": "Spring实战（第5版）",
+    "author": "克雷格·沃斯",
+    "publisher": "电子工业出版社",
+    "category": "计算机",
+    "publishDate": "2020-01-01",
+    "price": 99.0,
+    "totalCopies": 3,
+    "availableCopies": 3,
+    "location": "C区-02-03",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 15,
+    "isbn": "9787121427435",
+    "title": "Vue.js设计与实现",
+    "author": "霍春阳",
+    "publisher": "人民邮电出版社",
+    "category": "计算机",
+    "publishDate": "2022-01-01",
+    "price": 89.0,
+    "totalCopies": 4,
+    "availableCopies": 1,
+    "location": "C区-03-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 16,
+    "isbn": "9787115473899",
+    "title": "MySQL必知必会",
+    "author": "本·福塔",
+    "publisher": "人民邮电出版社",
+    "category": "计算机",
+    "publishDate": "2009-01-01",
+    "price": 39.0,
+    "totalCopies": 5,
+    "availableCopies": 5,
+    "location": "C区-03-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 17,
+    "isbn": "9787508647357",
+    "title": "人类简史",
+    "author": "尤瓦尔·赫拉利",
+    "publisher": "中信出版社",
+    "category": "历史",
+    "publishDate": "2014-11-01",
+    "price": 68.0,
+    "totalCopies": 5,
+    "availableCopies": 2,
+    "location": "D区-01-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 18,
+    "isbn": "9787508660752",
+    "title": "未来简史",
+    "author": "尤瓦尔·赫拉利",
+    "publisher": "中信出版社",
+    "category": "历史",
+    "publishDate": "2017-02-01",
+    "price": 68.0,
+    "totalCopies": 4,
+    "availableCopies": 4,
+    "location": "D区-01-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 19,
+    "isbn": "9787521701609",
+    "title": "时间简史",
+    "author": "史蒂芬·霍金",
+    "publisher": "湖南科学技术出版社",
+    "category": "科普",
+    "publishDate": "2010-04-01",
+    "price": 45.0,
+    "totalCopies": 3,
+    "availableCopies": 1,
+    "location": "D区-01-03",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 20,
+    "isbn": "9787535732309",
+    "title": "果壳中的宇宙",
+    "author": "史蒂芬·霍金",
+    "publisher": "湖南科学技术出版社",
+    "category": "科普",
+    "publishDate": "2002-01-01",
+    "price": 46.0,
+    "totalCopies": 2,
+    "availableCopies": 2,
+    "location": "D区-02-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 21,
+    "isbn": "9787544253994",
+    "title": "解忧杂货店",
+    "author": "东野圭吾",
+    "publisher": "南海出版公司",
+    "category": "外国文学",
+    "publishDate": "2014-05-01",
+    "price": 39.5,
+    "totalCopies": 7,
+    "availableCopies": 4,
+    "location": "A区-03-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 22,
+    "isbn": "9787544258609",
+    "title": "白夜行",
+    "author": "东野圭吾",
+    "publisher": "南海出版公司",
+    "category": "外国文学",
+    "publishDate": "2013-01-01",
+    "price": 39.5,
+    "totalCopies": 5,
+    "availableCopies": 3,
+    "location": "A区-03-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 23,
+    "isbn": "9787544277255",
+    "title": "嫌疑人X的献身",
+    "author": "东野圭吾",
+    "publisher": "南海出版公司",
+    "category": "外国文学",
+    "publishDate": "2014-06-01",
+    "price": 35.0,
+    "totalCopies": 4,
+    "availableCopies": 2,
+    "location": "A区-03-03",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 24,
+    "isbn": "9787020024759",
+    "title": "围城",
+    "author": "钱钟书",
+    "publisher": "人民文学出版社",
+    "category": "当代小说",
+    "publishDate": "1991-02-01",
+    "price": 29.0,
+    "totalCopies": 4,
+    "availableCopies": 4,
+    "location": "A区-04-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 25,
+    "isbn": "9787530210298",
+    "title": "平凡的世界",
+    "author": "路遥",
+    "publisher": "北京十月文艺出版社",
+    "category": "当代小说",
+    "publishDate": "2017-06-01",
+    "price": 108.0,
+    "totalCopies": 6,
+    "availableCopies": 3,
+    "location": "A区-04-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 26,
+    "isbn": "9787532776771",
+    "title": "追风筝的人",
+    "author": "卡勒德·胡赛尼",
+    "publisher": "上海译文出版社",
+    "category": "外国文学",
+    "publishDate": "2006-05-01",
+    "price": 36.0,
+    "totalCopies": 5,
+    "availableCopies": 5,
+    "location": "A区-04-03",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 27,
+    "isbn": "9787208061644",
+    "title": "明朝那些事儿（全集）",
+    "author": "当年明月",
+    "publisher": "上海人民出版社",
+    "category": "历史",
+    "publishDate": "2009-04-01",
+    "price": 358.0,
+    "totalCopies": 3,
+    "availableCopies": 1,
+    "location": "D区-02-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 28,
+    "isbn": "9787508663081",
+    "title": "万历十五年",
+    "author": "黄仁宇",
+    "publisher": "中华书局",
+    "category": "历史",
+    "publishDate": "2014-08-01",
+    "price": 32.0,
+    "totalCopies": 4,
+    "availableCopies": 2,
+    "location": "D区-02-03",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 29,
+    "isbn": "9787540478346",
+    "title": "摆渡人",
+    "author": "克莱儿·麦克福尔",
+    "publisher": "百花洲文艺出版社",
+    "category": "外国文学",
+    "publishDate": "2015-06-01",
+    "price": 36.0,
+    "totalCopies": 4,
+    "availableCopies": 4,
+    "location": "A区-05-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 30,
+    "isbn": "9787513313650",
+    "title": "岛上书店",
+    "author": "加布瑞埃拉·泽文",
+    "publisher": "江苏凤凰文艺出版社",
+    "category": "外国文学",
+    "publishDate": "2015-05-01",
+    "price": 35.0,
+    "totalCopies": 3,
+    "availableCopies": 2,
+    "location": "A区-05-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 31,
+    "isbn": "9787020104345",
+    "title": "小王子",
+    "author": "安东尼·德·圣埃克苏佩里",
+    "publisher": "人民文学出版社",
+    "category": "儿童文学",
+    "publishDate": "2015-01-01",
+    "price": 22.0,
+    "totalCopies": 6,
+    "availableCopies": 6,
+    "location": "E区-01-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 32,
+    "isbn": "9787544272568",
+    "title": "窗边的小豆豆",
+    "author": "黑柳彻子",
+    "publisher": "南海出版公司",
+    "category": "儿童文学",
+    "publishDate": "2011-01-01",
+    "price": 25.0,
+    "totalCopies": 5,
+    "availableCopies": 3,
+    "location": "E区-01-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 33,
+    "isbn": "9787115373991",
+    "title": "图解HTTP",
+    "author": "上野宣",
+    "publisher": "人民邮电出版社",
+    "category": "计算机",
+    "publishDate": "2014-05-01",
+    "price": 49.0,
+    "totalCopies": 4,
+    "availableCopies": 1,
+    "location": "C区-04-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 34,
+    "isbn": "9787115293800",
+    "title": "图解TCP/IP",
+    "author": "竹下隆史",
+    "publisher": "人民邮电出版社",
+    "category": "计算机",
+    "publishDate": "2013-01-01",
+    "price": 59.0,
+    "totalCopies": 3,
+    "availableCopies": 2,
+    "location": "C区-04-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 35,
+    "isbn": "9787121311277",
+    "title": "重构：改善既有代码的设计",
+    "author": "马丁·福勒",
+    "publisher": "人民邮电出版社",
+    "category": "计算机",
+    "publishDate": "2019-04-01",
+    "price": 118.0,
+    "totalCopies": 2,
+    "availableCopies": 0,
+    "location": "C区-04-03",
+    "status": 1,
+    "remark": "全部借出"
+  },
+  {
+    "id": 36,
+    "isbn": "9787111558422",
+    "title": "领域驱动设计",
+    "author": "埃里克·埃文斯",
+    "publisher": "人民邮电出版社",
+    "category": "计算机",
+    "publishDate": "2016-06-01",
+    "price": 79.0,
+    "totalCopies": 2,
+    "availableCopies": 1,
+    "location": "C区-05-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 37,
+    "isbn": "9787506370868",
+    "title": "边城",
+    "author": "沈从文",
+    "publisher": "人民文学出版社",
+    "category": "现代文学",
+    "publishDate": "2015-08-01",
+    "price": 26.0,
+    "totalCopies": 4,
+    "availableCopies": 3,
+    "location": "A区-05-03",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 38,
+    "isbn": "9787020104468",
+    "title": "呐喊",
+    "author": "鲁迅",
+    "publisher": "人民文学出版社",
+    "category": "现代文学",
+    "publishDate": "2015-01-01",
+    "price": 28.0,
+    "totalCopies": 5,
+    "availableCopies": 5,
+    "location": "A区-06-01",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 39,
+    "isbn": "9787532751143",
+    "title": "瓦尔登湖",
+    "author": "亨利·戴维·梭罗",
+    "publisher": "上海译文出版社",
+    "category": "外国文学",
+    "publishDate": "2009-06-01",
+    "price": 30.0,
+    "totalCopies": 3,
+    "availableCopies": 3,
+    "location": "A区-06-02",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 40,
+    "isbn": "9787550012219",
+    "title": "浮生六记",
+    "author": "沈复",
+    "publisher": "江西人民出版社",
+    "category": "古典文学",
+    "publishDate": "2016-06-01",
+    "price": 32.0,
+    "totalCopies": 3,
+    "availableCopies": 2,
+    "location": "A区-06-03",
+    "status": 1,
+    "remark": null
+  },
+  {
+    "id": 41,
+    "isbn": "9787532733678",
+    "title": "追忆似水年华",
+    "author": "马塞尔·普鲁斯特",
+    "publisher": "译林出版社",
+    "category": "外国文学",
+    "publishDate": "2012-06-01",
+    "price": 168.0,
+    "totalCopies": 2,
+    "availableCopies": 2,
+    "location": "A区-07-01",
+    "status": 0,
+    "remark": "书页破损，暂停外借"
+  }
+];
+  var DB_KEY = 'library_books_v1';
+
+  function deepCopy(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function loadDB() {
+    var raw = null;
+    try { raw = localStorage.getItem(DB_KEY); } catch (e) { raw = null; }
+    if (!raw) {
+      saveDB(SEED);
+      return deepCopy(SEED);
+    }
+    try {
+      var list = JSON.parse(raw);
+      return Array.isArray(list) ? list : [];
+    } catch (e) { return []; }
+  }
+  function saveDB(list) {
+    try { localStorage.setItem(DB_KEY, JSON.stringify(list)); }
+    catch (e) { toast('保存失败：浏览器存储不可用（可能是隐私模式）', 'error'); }
+  }
+  function nextId(list) {
+    return list.reduce(function (m, b) { return Math.max(m, Number(b.id) || 0); }, 0) + 1;
+  }
+  function ok(data, msg) { return Promise.resolve({ code: 200, message: msg || '操作成功', data: data }); }
+  function bad(code, msg) { return Promise.reject({ code: code, message: msg }); }
+  function nowStr() {
+    var d = new Date(), p = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' +
+           p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+
+  var LocalAPI = {
+    page: function (q) {
+      var list = loadDB();
+      var kw = (q.keyword || '').trim().toLowerCase();
+      if (kw) {
+        list = list.filter(function (b) {
+          return String(b.title || '').toLowerCase().indexOf(kw) >= 0 ||
+                 String(b.author || '').toLowerCase().indexOf(kw) >= 0 ||
+                 String(b.isbn || '').toLowerCase().indexOf(kw) >= 0;
+        });
+      }
+      if (q.category) list = list.filter(function (b) { return b.category === q.category; });
+      if (q.status !== '' && q.status !== null && q.status !== undefined) {
+        list = list.filter(function (b) { return Number(b.status) === Number(q.status); });
+      }
+      list.sort(function (a, b) { return Number(b.id) - Number(a.id); });
+
+      var total = list.length;
+      var pageSize = Number(q.pageSize) || 10;
+      var pageNum = Number(q.pageNum) || 1;
+      var pages = Math.max(1, Math.ceil(total / pageSize));
+      var start = (pageNum - 1) * pageSize;
+      return ok({
+        total: total, pageNum: pageNum, pageSize: pageSize, pages: pages,
+        records: list.slice(start, start + pageSize)
+      });
+    },
+
+    categories: function () {
+      var seen = {};
+      loadDB().forEach(function (b) { if (b.category) seen[b.category] = 1; });
+      return ok(Object.keys(seen).sort());
+    },
+
+    create: function (b) {
+      var list = loadDB();
+      if (list.some(function (x) { return x.isbn === b.isbn; })) {
+        return bad(409, 'ISBN 已存在：' + b.isbn);
+      }
+      if (b.availableCopies > b.totalCopies) {
+        return bad(400, '可借数量不能大于馆藏总数');
+      }
+      var t = nowStr();
+      var rec = {
+        id: nextId(list), isbn: b.isbn, title: b.title, author: b.author,
+        publisher: b.publisher || null, category: b.category || null,
+        publishDate: b.publishDate || null,
+        price: (b.price === null || b.price === undefined) ? null : Number(b.price),
+        location: b.location || null,
+        totalCopies: Number(b.totalCopies), availableCopies: Number(b.availableCopies),
+        status: (b.status === null || b.status === undefined) ? 1 : Number(b.status),
+        remark: b.remark || null,
+        createTime: t, updateTime: t
+      };
+      list.push(rec);
+      saveDB(list);
+      return ok(rec.id, '新增成功');
+    },
+
+    update: function (b) {
+      var list = loadDB();
+      var idx = list.findIndex(function (x) { return Number(x.id) === Number(b.id); });
+      if (idx < 0) return bad(404, '图书不存在：id=' + b.id);
+      if (list.some(function (x) { return x.isbn === b.isbn && Number(x.id) !== Number(b.id); })) {
+        return bad(409, 'ISBN 已被其它图书占用：' + b.isbn);
+      }
+      if (b.availableCopies > b.totalCopies) {
+        return bad(400, '可借数量不能大于馆藏总数');
+      }
+      var rec = list[idx];
+      rec.isbn = b.isbn; rec.title = b.title; rec.author = b.author;
+      rec.publisher = b.publisher || null; rec.category = b.category || null;
+      rec.publishDate = b.publishDate || null;
+      rec.price = (b.price === null || b.price === undefined) ? null : Number(b.price);
+      rec.location = b.location || null;
+      rec.totalCopies = Number(b.totalCopies);
+      rec.availableCopies = Number(b.availableCopies);
+      rec.status = (b.status === null || b.status === undefined) ? 1 : Number(b.status);
+      rec.remark = b.remark || null;
+      rec.updateTime = nowStr();
+      saveDB(list);
+      return ok(null, '修改成功');
+    },
+
+    remove: function (id) {
+      var list = loadDB();
+      var idx = list.findIndex(function (x) { return Number(x.id) === Number(id); });
+      if (idx < 0) return bad(404, '图书不存在：id=' + id);
+      list.splice(idx, 1);
+      saveDB(list);
+      return ok(null, '删除成功');
+    },
+
+    removeBatch: function (ids) {
+      if (!ids || !ids.length) return bad(400, '请先选择要删除的图书');
+      var set = {};
+      ids.forEach(function (i) { set[Number(i)] = 1; });
+      var list = loadDB().filter(function (b) { return !set[Number(b.id)]; });
+      saveDB(list);
+      return ok(null, '批量删除成功');
+    }
+  };
+
+  function parseQuery(qs) {
+    var q = {};
+    (qs || '').split('&').forEach(function (kv) {
+      if (!kv) return;
+      var i = kv.indexOf('=');
+      var k = decodeURIComponent(i < 0 ? kv : kv.slice(0, i));
+      var v = i < 0 ? '' : decodeURIComponent(kv.slice(i + 1));
+      q[k] = v;
+    });
+    return q;
+  }
+
+  /* 路由：与后端版保持完全相同的调用签名，内部走本地存储 */
+  function dispatch(path, options) {
+    options = options || {};
+    var method = options.method || 'GET';
+    var m;
+    if ((m = path.match(/^\/book\/page\?(.*)$/))) return LocalAPI.page(parseQuery(m[1]));
+    if (path === '/book/categories') return LocalAPI.categories();
+    if (path === '/book' && method === 'POST') return LocalAPI.create(options.body);
+    if (path === '/book' && method === 'PUT') return LocalAPI.update(options.body);
+    if (path === '/book/batch' && method === 'DELETE') return LocalAPI.removeBatch(options.body);
+    if ((m = path.match(/^\/book\/(\d+)$/)) && method === 'DELETE') return LocalAPI.remove(Number(m[1]));
+    return Promise.reject({ code: 500, message: '未知接口：' + path });
+  }
+
+  /* 返回约定与后端版完全一致：成功 resolve 业务数据(data)，失败 reject Error(message) */
+  function request(path, options) {
+    return dispatch(path, options).then(function (res) {
+      if (res && res.code === 200) return res.data;
+      throw new Error((res && res.message) ? res.message : '请求失败');
+    }, function (e) {
+      throw new Error((e && e.message) ? e.message : '请求失败');
+    });
+  }
+
+  /* ============================ 界面逻辑 ============================ */
+  var state = {
+    pageNum: 1, pageSize: 10, keyword: '', category: '', status: '',
+    total: 0, rows: [], selected: {}, categories: [], editingId: null
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) {
+    if (s === null || s === undefined) return '';
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function toast(msg, type) {
+    var el = document.createElement('div');
+    el.className = 'toast ' + (type || '');
+    el.textContent = msg;
+    $('toastWrap').appendChild(el);
+    setTimeout(function () {
+      el.style.transition = 'opacity .25s';
+      el.style.opacity = '0';
+      setTimeout(function () { el.remove(); }, 260);
+    }, 2200);
+  }
+
+  function loadCategories() {
+    return request('/book/categories').then(function (list) {
+      state.categories = list || [];
+      var sel = $('category');
+      sel.innerHTML = '<option value="">全部分类</option>' +
+        state.categories.map(function (c) {
+          return '<option value="' + esc(c) + '">' + esc(c) + '</option>';
+        }).join('');
+      sel.value = state.category;
+      $('catList').innerHTML = state.categories.map(function (c) {
+        return '<option value="' + esc(c) + '"></option>';
+      }).join('');
+    });
+  }
+
+  function loadBooks() {
+    var params = ['pageNum=' + state.pageNum, 'pageSize=' + state.pageSize];
+    if (state.keyword) params.push('keyword=' + encodeURIComponent(state.keyword));
+    if (state.category) params.push('category=' + encodeURIComponent(state.category));
+    if (state.status !== '') params.push('status=' + state.status);
+
+    return request('/book/page?' + params.join('&'))
+      .then(function (data) {
+        state.rows = data.records || [];
+        state.total = data.total || 0;
+        var pages = Math.max(1, Math.ceil(state.total / state.pageSize));
+        if (state.pageNum > pages) { state.pageNum = pages; return loadBooks(); }
+        renderTable();
+        renderPager();
+      })
+      .catch(function (e) {
+        state.rows = []; state.total = 0;
+        $('tbody').innerHTML = '<tr><td colspan="12" class="empty">加载失败：' + esc(e.message) + '</td></tr>';
+        renderPager();
+      });
+  }
+
+  function renderTable() {
+    var rows = state.rows;
+    $('emptyTip').style.display = rows.length ? 'none' : 'block';
+
+    $('tbody').innerHTML = rows.map(function (b) {
+      var stock = (b.availableCopies > 0)
+        ? '<span class="tag tag-success">' + b.availableCopies + ' / ' + b.totalCopies + '</span>'
+        : '<span class="tag tag-danger">' + b.availableCopies + ' / ' + b.totalCopies + '</span>';
+      var st = (Number(b.status) === 1)
+        ? '<span class="tag tag-primary">在架</span>'
+        : '<span class="tag tag-info">下架</span>';
+      var price = (b.price === null || b.price === undefined) ? '—' : '¥' + Number(b.price).toFixed(2);
+      return '<tr>' +
+        '<td class="center"><input type="checkbox" class="rowCheck" data-id="' + b.id + '"' +
+          (state.selected[b.id] ? ' checked' : '') + ' /></td>' +
+        '<td>' + esc(b.isbn) + '</td>' +
+        '<td><div class="ellip" title="' + esc(b.title) + '">' + esc(b.title) + '</div></td>' +
+        '<td><div class="ellip" title="' + esc(b.author) + '">' + esc(b.author) + '</div></td>' +
+        '<td><div class="ellip" title="' + esc(b.publisher) + '">' + esc(b.publisher) + '</div></td>' +
+        '<td>' + esc(b.category) + '</td>' +
+        '<td>' + esc(b.publishDate) + '</td>' +
+        '<td class="num">' + price + '</td>' +
+        '<td class="center">' + stock + '</td>' +
+        '<td>' + esc(b.location) + '</td>' +
+        '<td class="center">' + st + '</td>' +
+        '<td class="center">' +
+          '<button class="btn-link" data-act="edit" data-id="' + b.id + '">编辑</button>' +
+          '<button class="btn-link del" data-act="del" data-id="' + b.id + '">删除</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    syncCheckAll();
+  }
+
+  function renderPager() {
+    var total = state.total, size = state.pageSize;
+    var pages = Math.max(1, Math.ceil(total / size)), cur = state.pageNum;
+    var html = '<span>共 <b>' + total + '</b> 条</span>';
+    html += '<select id="pgSize">' +
+      [10, 20, 50, 100].map(function (s) {
+        return '<option value="' + s + '"' + (s === size ? ' selected' : '') + '>' + s + ' 条/页</option>';
+      }).join('') + '</select>';
+    html += '<span class="spacer"></span>';
+    html += '<button class="pg-btn" data-pg="1"' + (cur === 1 ? ' disabled' : '') + '>«</button>';
+    html += '<button class="pg-btn" data-pg="' + (cur - 1) + '"' + (cur === 1 ? ' disabled' : '') + '>上一页</button>';
+    pageList(pages, cur).forEach(function (p) {
+      if (p === '...') html += '<span class="pg-dots">…</span>';
+      else html += '<button class="pg-btn' + (p === cur ? ' active' : '') + '" data-pg="' + p + '">' + p + '</button>';
+    });
+    html += '<button class="pg-btn" data-pg="' + (cur + 1) + '"' + (cur === pages ? ' disabled' : '') + '>下一页</button>';
+    html += '<button class="pg-btn" data-pg="' + pages + '"' + (cur === pages ? ' disabled' : '') + '>»</button>';
+    html += '<span>前往</span><input type="number" class="jump" id="pgJump" min="1" max="' + pages + '" value="' + cur + '" /><span>页</span>';
+    $('pager').innerHTML = html;
+  }
+
+  function pageList(pages, cur) {
+    var out = [];
+    if (pages <= 7) { for (var i = 1; i <= pages; i++) out.push(i); return out; }
+    out.push(1);
+    var start = Math.max(2, cur - 1), end = Math.min(pages - 1, cur + 1);
+    if (start > 2) out.push('...');
+    for (var j = start; j <= end; j++) out.push(j);
+    if (end < pages - 1) out.push('...');
+    out.push(pages);
+    return out;
+  }
+
+  function syncCheckAll() {
+    var ids = Object.keys(state.selected).filter(function (k) { return state.selected[k]; });
+    $('checkAll').checked = state.rows.length > 0 && ids.length === state.rows.length;
+    var btn = $('btnBatchDelete');
+    btn.disabled = ids.length === 0;
+    btn.textContent = ids.length ? ('批量删除（' + ids.length + '）') : '批量删除';
+  }
+
+  function selectedIds() {
+    return Object.keys(state.selected).filter(function (k) { return state.selected[k]; }).map(Number);
+  }
+
+  function openDialog(book) {
+    state.editingId = book ? book.id : null;
+    $('dlgTitle').textContent = book ? '编辑图书' : '新增图书';
+    $('f_id').value = book ? book.id : '';
+    $('f_isbn').value = book ? (book.isbn || '') : '';
+    $('f_title').value = book ? (book.title || '') : '';
+    $('f_author').value = book ? (book.author || '') : '';
+    $('f_publisher').value = book ? (book.publisher || '') : '';
+    $('f_category').value = book ? (book.category || '') : '';
+    $('f_publishDate').value = book ? (book.publishDate || '') : '';
+    $('f_price').value = (book && book.price !== null && book.price !== undefined) ? book.price : '';
+    $('f_location').value = book ? (book.location || '') : '';
+    $('f_totalCopies').value = book ? book.totalCopies : 1;
+    $('f_availableCopies').value = book ? book.availableCopies : 1;
+    $('f_status').value = String(book && book.status !== null && book.status !== undefined ? book.status : 1);
+    $('f_remark').value = book ? (book.remark || '') : '';
+    clearErrors();
+    $('mask').classList.add('show');
+    setTimeout(function () { $('f_isbn').focus(); }, 30);
+  }
+
+  function closeDialog() { $('mask').classList.remove('show'); }
+  function clearErrors() {
+    ['e_isbn', 'e_title', 'e_author', 'e_totalCopies', 'e_availableCopies'].forEach(function (id) {
+      $(id).textContent = '';
+    });
+  }
+
+  function validate() {
+    clearErrors();
+    var okAll = true;
+    var isbn = $('f_isbn').value.trim();
+    var title = $('f_title').value.trim();
+    var author = $('f_author').value.trim();
+    var total = $('f_totalCopies').value;
+    var avail = $('f_availableCopies').value;
+
+    if (!isbn) { $('e_isbn').textContent = '请输入 ISBN'; okAll = false; }
+    if (!title) { $('e_title').textContent = '请输入书名'; okAll = false; }
+    if (!author) { $('e_author').textContent = '请输入作者'; okAll = false; }
+    if (total === '' || Number(total) < 0) { $('e_totalCopies').textContent = '请输入合法的馆藏总数'; okAll = false; }
+    if (avail === '' || Number(avail) < 0) { $('e_availableCopies').textContent = '请输入合法的可借数量'; okAll = false; }
+    if (okAll && Number(avail) > Number(total)) {
+      $('e_availableCopies').textContent = '可借数量不能大于馆藏总数'; okAll = false;
+    }
+    return okAll;
+  }
+
+  function collectForm() {
+    var priceVal = $('f_price').value;
+    return {
+      id: state.editingId || undefined,
+      isbn: $('f_isbn').value.trim(),
+      title: $('f_title').value.trim(),
+      author: $('f_author').value.trim(),
+      publisher: $('f_publisher').value.trim() || null,
+      category: $('f_category').value.trim() || null,
+      publishDate: $('f_publishDate').value || null,
+      price: priceVal === '' ? null : Number(priceVal),
+      location: $('f_location').value.trim() || null,
+      totalCopies: Number($('f_totalCopies').value),
+      availableCopies: Number($('f_availableCopies').value),
+      status: Number($('f_status').value),
+      remark: $('f_remark').value.trim() || null
+    };
+  }
+
+  function submitForm() {
+    if (!validate()) return;
+    var payload = collectForm();
+    var isEdit = !!state.editingId;
+    $('btnSubmit').disabled = true;
+    request('/book', { method: isEdit ? 'PUT' : 'POST', body: payload })
+      .then(function () {
+        toast(isEdit ? '修改成功' : '新增成功', 'success');
+        closeDialog();
+        return Promise.all([loadBooks(), loadCategories()]);
+      })
+      .catch(function (e) { toast(e.message, 'error'); })
+      .finally(function () { $('btnSubmit').disabled = false; });
+  }
+
+  var confirmHandler = null;
+  function openConfirm(title, html, onOk) {
+    $('cfTitle').textContent = title;
+    $('cfText').innerHTML = html;
+    confirmHandler = onOk;
+    $('confirmMask').classList.add('show');
+  }
+  function closeConfirm() { $('confirmMask').classList.remove('show'); confirmHandler = null; }
+
+  function removeBook(book) {
+    openConfirm('删除确认', '确定删除《' + esc(book.title) + '》吗？此操作不可恢复。', function () {
+      request('/book/' + book.id, { method: 'DELETE' })
+        .then(function () {
+          toast('删除成功', 'success');
+          delete state.selected[book.id];
+          if (state.rows.length === 1 && state.pageNum > 1) state.pageNum--;
+          return Promise.all([loadBooks(), loadCategories()]);
+        })
+        .catch(function (e) { toast(e.message, 'error'); });
+    });
+  }
+
+  function removeSelected() {
+    var ids = selectedIds();
+    if (!ids.length) return;
+    openConfirm('批量删除确认', '确定删除选中的 <b>' + ids.length + '</b> 本图书吗？', function () {
+      request('/book/batch', { method: 'DELETE', body: ids })
+        .then(function () {
+          toast('批量删除成功', 'success');
+          state.selected = {};
+          state.pageNum = 1;
+          return Promise.all([loadBooks(), loadCategories()]);
+        })
+        .catch(function (e) { toast(e.message, 'error'); });
+    });
+  }
+
+  function exportJson() {
+    var size = 100, out = [], page = 1;
+    function fetchPage() {
+      return request('/book/page?pageNum=' + page + '&pageSize=' + size).then(function (data) {
+        var recs = data.records || [];
+        out = out.concat(recs);
+        if (out.length < (data.total || 0) && recs.length > 0) { page++; return fetchPage(); }
+        return out;
+      });
+    }
+    fetchPage().then(function (all) {
+      var payload = {
+        exportedAt: new Date().toISOString(),
+        source: '图书管理系统（纯离线版）',
+        count: all.length,
+        books: all
+      };
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var d = new Date(), p = function (n) { return n < 10 ? '0' + n : '' + n; };
+      a.href = url;
+      a.download = 'books_' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '_' +
+        p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+      toast('已导出 ' + all.length + ' 条数据', 'success');
+    }).catch(function (e) { toast('导出失败：' + e.message, 'error'); });
+  }
+
+  function importJson(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var books;
+      try {
+        var parsed = JSON.parse(reader.result);
+        books = Array.isArray(parsed) ? parsed : (parsed && parsed.books);
+        if (!Array.isArray(books)) throw new Error('文件格式不正确');
+      } catch (e) { toast('导入失败：' + e.message, 'error'); return; }
+      if (!books.length) { toast('文件中没有数据', 'info'); return; }
+
+      openConfirm('导入确认',
+        '文件中共 <b>' + books.length + '</b> 条记录。<br/>' +
+        '导入时会自动跳过 ISBN 已存在的图书，<b>不会覆盖</b>现有数据。是否继续？',
+        function () { doImport(books); });
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function doImport(books) {
+    var okCount = 0, dupCount = 0, failCount = 0;
+    function next(i) {
+      if (i >= books.length) {
+        toast('导入完成：成功 ' + okCount + ' 条，跳过重复 ' + dupCount + ' 条，失败 ' + failCount + ' 条',
+          failCount ? 'info' : 'success');
+        state.pageNum = 1; state.selected = {};
+        return Promise.all([loadBooks(), loadCategories()]);
+      }
+      var b = books[i];
+      var payload = {
+        isbn: b.isbn, title: b.title, author: b.author,
+        publisher: b.publisher || null, category: b.category || null,
+        publishDate: b.publishDate || null,
+        price: (b.price === undefined ? null : b.price),
+        location: b.location || null,
+        totalCopies: (b.totalCopies === undefined ? 1 : b.totalCopies),
+        availableCopies: (b.availableCopies === undefined ? 1 : b.availableCopies),
+        status: (b.status === undefined ? 1 : b.status),
+        remark: b.remark || null
+      };
+      return request('/book', { method: 'POST', body: payload })
+        .then(function () { okCount++; })
+        .catch(function (e) {
+          if (e.message && e.message.indexOf('已存在') >= 0) dupCount++;
+          else failCount++;
+        })
+        .then(function () {
+          if ((i + 1) % 20 === 0) toast('导入中… ' + (i + 1) + '/' + books.length, 'info');
+          return next(i + 1);
+        });
+    }
+    toast('开始导入 ' + books.length + ' 条…', 'info');
+    next(0);
+  }
+
+  function resetData() {
+    openConfirm('恢复示例数据',
+      '将把本地数据<b>清空并还原为 41 本演示图书</b>，你新增或修改的数据会丢失。<br/>确定继续吗？',
+      function () {
+        saveDB(deepCopy(SEED));
+        state.selected = {}; state.pageNum = 1;
+        toast('已恢复为 41 本示例数据', 'success');
+        return Promise.all([loadBooks(), loadCategories()]);
+      });
+  }
+
+  function bind() {
+    $('btnSearch').addEventListener('click', function () {
+      state.keyword = $('kw').value.trim();
+      state.category = $('category').value;
+      state.status = $('status').value;
+      state.pageNum = 1; state.selected = {};
+      loadBooks();
+    });
+    $('kw').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('btnSearch').click(); });
+
+    $('btnReset').addEventListener('click', function () {
+      $('kw').value = ''; $('category').value = ''; $('status').value = '';
+      state.keyword = ''; state.category = ''; state.status = '';
+      state.pageNum = 1; state.selected = {};
+      loadBooks();
+    });
+
+    $('btnCreate').addEventListener('click', function () { openDialog(null); });
+    $('btnSubmit').addEventListener('click', submitForm);
+    $('btnCancel').addEventListener('click', closeDialog);
+    $('btnDlgClose').addEventListener('click', closeDialog);
+    $('mask').addEventListener('click', function (e) { if (e.target === $('mask')) closeDialog(); });
+
+    $('btnBatchDelete').addEventListener('click', removeSelected);
+    $('btnExport').addEventListener('click', exportJson);
+    $('btnImport').addEventListener('click', function () { $('fileInput').click(); });
+    $('btnResetData').addEventListener('click', resetData);
+    $('fileInput').addEventListener('change', function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (f) importJson(f);
+      e.target.value = '';
+    });
+
+    $('cfOk').addEventListener('click', function () {
+      var fn = confirmHandler; closeConfirm(); if (fn) fn();
+    });
+    $('cfCancel').addEventListener('click', closeConfirm);
+    $('cfClose').addEventListener('click', closeConfirm);
+    $('confirmMask').addEventListener('click', function (e) { if (e.target === $('confirmMask')) closeConfirm(); });
+
+    $('tbody').addEventListener('click', function (e) {
+      var t = e.target;
+      if (t.dataset && t.dataset.act) {
+        var id = Number(t.dataset.id);
+        var book = state.rows.filter(function (r) { return Number(r.id) === id; })[0];
+        if (t.dataset.act === 'edit' && book) openDialog(book);
+        if (t.dataset.act === 'del' && book) removeBook(book);
+      }
+    });
+    $('tbody').addEventListener('change', function (e) {
+      if (e.target.classList.contains('rowCheck')) {
+        var id = e.target.dataset.id;
+        if (e.target.checked) state.selected[id] = true; else delete state.selected[id];
+        syncCheckAll();
+      }
+    });
+
+    $('checkAll').addEventListener('change', function (e) {
+      state.rows.forEach(function (r) {
+        if (e.target.checked) state.selected[r.id] = true; else delete state.selected[r.id];
+      });
+      renderTable();
+    });
+
+    $('pager').addEventListener('click', function (e) {
+      var t = e.target;
+      if (t.classList.contains('pg-btn') && t.dataset.pg) {
+        var p = Number(t.dataset.pg);
+        if (p >= 1 && p !== state.pageNum) { state.pageNum = p; loadBooks(); }
+      }
+    });
+    $('pager').addEventListener('change', function (e) {
+      if (e.target.id === 'pgSize') {
+        state.pageSize = Number(e.target.value); state.pageNum = 1; loadBooks();
+      } else if (e.target.id === 'pgJump') {
+        var pages = Math.max(1, Math.ceil(state.total / state.pageSize));
+        state.pageNum = Math.min(pages, Math.max(1, Number(e.target.value) || 1));
+        loadBooks();
+      }
+    });
+    $('pager').addEventListener('keydown', function (e) {
+      if (e.target.id === 'pgJump' && e.key === 'Enter') e.target.blur();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { closeDialog(); closeConfirm(); }
+    });
+  }
+
+  bind();
+  loadCategories();
+  loadBooks();
+})();
+</script>
+</body>
+</html>

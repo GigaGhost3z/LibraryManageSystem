@@ -1,0 +1,70 @@
+server:
+  port: 8080
+  servlet:
+    # 显式声明 HTTP 请求/响应用 UTF-8，避免依赖 JVM 默认字符集
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: library-backend
+  # 默认使用 MySQL；想免安装数据库快速体验可改成 h2
+  profiles:
+    active: mysql
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+
+mybatis-plus:
+  configuration:
+    # 数据库下划线字段 -> Java 驼峰属性
+    map-underscore-to-camel-case: true
+    # 控制台打印 SQL，便于调试；上线可注释掉
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+
+---
+# =========================================================================
+# MySQL（默认 profile）
+# 需要先执行 db/init_full.sql 建库建表并写入虚拟数据
+# =========================================================================
+spring:
+  config:
+    activate:
+      on-profile: mysql
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/library_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: languangtao123
+
+---
+# =========================================================================
+# H2（可选 profile）：不装 MySQL 也能直接启动
+#   启动方式: java -jar target/library-backend-1.0.0.jar --spring.profiles.active=h2
+#   数据库文件: backend/data/library_db.mv.db
+#   注意: 每次启动都会重建示例数据（方便反复演示）
+# =========================================================================
+spring:
+  config:
+    activate:
+      on-profile: h2
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:file:./data/library_db;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: always
+      # 关键：SQL 初始化脚本必须按 UTF-8 读取
+      # JDK 18 起默认字符集才是 UTF-8（JEP 400）；JDK 17 在中文 Windows 上默认是 GBK，
+      # 不写这一行会把 UTF-8 的 data.sql 按 GBK 读入，导致中文变成乱码且中文搜索失效。
+      encoding: UTF-8
+      schema-locations: classpath:db/h2-schema.sql
+      data-locations: classpath:db/data.sql
